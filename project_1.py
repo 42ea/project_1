@@ -59,6 +59,7 @@ class CurveDesigner(object):
         return Spline
     
     
+    
     def deBoor(self, dd, ui, u):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points for our hot interval
@@ -83,30 +84,22 @@ class CurveDesigner(object):
         
         return d43
     
-    
-    def basis_func(self, u_vec,j):
-        def N(u,u_vec,j,k):
-            if(k==0):
-                if(u_vec[j]==u_vec[j-1]):
-                    return 0
-                if((u_vec[j-1]<=u) and (u<u_vec[j])):
-                    return 1
-                return 0
-            
-            return (u-u[i-1])/(u[i+k-1]-u[i-1])*N(u,u_vec,j,k-1) \
-                    +(u[i+k]-u)/(u[i+k]-u[i])*N(u,u_vec,j+1,k-1)
-        def evaluate_N(u):
-            return N(u,u_vec,j,3)
-        return evaluate_N
+    def plot(self, Spline, d_vector, control = False):
+        s1 = spline[0,:]        # generate the x-coordinates for the spline
+        s2 = spline[1,:]        # generate the y-coordniates for the spline
 
-    def plot(self, spline = True, control = False):
+        d0, d1 = zip(*d_vector) #Separates the x- and y-values for the control points
         
-        self.x = 0
-        self.y = 0
-        plt.plot(self.x, self.y, label='Cubic spline')
         if control:
-            plt.plot(self.x, self.control_polygon, label='Control polygon')
-            plt.plot(self.x, self.deBoor, 'ro', label='deBoor points')
+            #Plot control points with line inbetween
+            plt.plot(d0, d1, color = 'r', linewidth = 0.3)
+            plt.plot(d0, d1, 'bo', color = 'r')
+            
+        plt.plot(s1,s2)         # plotting the spline 
+            
+        
+
+
 
 #Blossom recursion.
 cd = CurveDesigner()
@@ -123,18 +116,11 @@ new_u = cd.deBoor(dd, uu, u)
 # but we need many new points... hmmm... and then to plot them.
 spline = cd.generateSpline(cd.d_vector, cd.u_vector,50)
     
-
-#Plotting control points.
-d0, d1 = zip(*cd.d_vector)
-s1 = spline[0,:]        # generate the x-coordinates for the spline
-s2 = spline[1,:]        # generate the y-coordniates for the spline
-plt.plot(d0, d1, 'bo')
-plt.plot(s1,s2)         # plotting the spline 
-# TODO = (1) make these points red instead. (2) draw lines in between them.
+#Plot s(u) and control points
+cd.plot(spline, cd.d_vector, control = True, )
 
 
-
-
+    
 
 
 

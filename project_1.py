@@ -17,27 +17,28 @@ class CurveDesigner(object):
     def __init__(self):
         pass
 
-    def deBoor(self, dd, uu, u):
+    def deBoor(self, dd, ui, u):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points.
         uu: [u_(I-2), ..., u_(I+3)] : node points.
         u: parameter for generating a new point."""
-        uu_2, uu_1, uu0, uu1, uu2, uu3 = uu
+        uu2, uu1, u0, u1, u2, u3 = ui
         
-        a21 = (uu1-u)/(uu1-uu_2)
-        a31 = (uu2-u)/(uu2-uu_1)
-        a41 = (uu3-u)/(uu3-uu0)
+        a21 = (u1-u)/(u1-uu2)
+        a31 = (u2-u)/(u2-uu1)
+        a41 = (u3-u)/(u3-u0)
         d21 = a21*dd[0] + (1-a21)*dd[1]
         d31 = a31*dd[1] + (1-a31)*dd[2]
         d41 = a41*dd[2] + (1-a41)*dd[3]
         
-        a32 = (uu1-u)/(uu1-uu_1)
-        a42 = (uu2-u)/(uu2-uu0)
+        a32 = (u1-u)/(u1-uu1)
+        a42 = (u2-u)/(u2-u0)
         d32 = a32*d21 + (1-a32)*d31
         d42 = a42*d31 + (1-a42)*d41
         
-        a43 = (uu1-u)/(uu1-uu0)
+        a43 = (u1-u)/(u1-u0)
         d43 = a43*d32 + (1-a43)*d42
+        
         return d43
 
 #Define the grid and the control points.

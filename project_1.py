@@ -83,6 +83,21 @@ class CurveDesigner(object):
         d43 = a43*d32 + (1-a43)*d42
         
         return d43
+        
+    def basis_func(self, j):
+        def N(u,j,k):
+            if(k==0):
+                if(self.u_vector[j]==self.u_vector[j-1]):
+                    return 0
+                if((self.u_vector[j-1]<=u) and (u<self.u_vector[j])):
+                    return 1
+                return 0
+
+            return (u-u[j-1])/(u[j+k-1]-u[j-1])*N(u,j,k-1) \
+                    +(u[j+k]-u)/(u[j+k]-u[j])*N(u,j+1,k-1)
+        def evaluate_N(u):
+            return N(u,j,3)
+        return evaluate_N
     
     def plot(self, Spline, d_vector, control = False):
         s1 = spline[0,:]        # generate the x-coordinates for the spline
@@ -115,15 +130,10 @@ dd = cd.d_vector[i-4:i]                                                         
 new_u = cd.deBoor(dd, uu, u)
 # but we need many new points... hmmm... and then to plot them.
 spline = cd.generateSpline(cd.d_vector, cd.u_vector,50)
-    
+   
 #Plot s(u) and control points
 cd.plot(spline, cd.d_vector, control = True, )
 
-
-    
-
-
-
-
+# TODO = (1) make these points red instead. (2) draw lines in between them.
 
 

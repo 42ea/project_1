@@ -92,6 +92,12 @@ class CurveDesigner(object):
                 if((self.u_vector[j-1]<=u) and (u<self.u_vector[j])):
                     return 1
                 return 0
+            #Prevent out of bounds.
+            if j==0:
+                return (self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)
+
+            if j==(len(self.u_vector)-1):
+                return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1)    
 
             return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1) \
                     +(self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)

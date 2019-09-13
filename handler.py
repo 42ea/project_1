@@ -1,6 +1,5 @@
-import project_1 as p
+import curve_handler as p
 import numpy as np
-import matplotlib.pyplot as plt
 
 cd = p.CurveDesigner()
 

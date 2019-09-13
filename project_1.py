@@ -36,7 +36,7 @@ class CurveDesigner(object):
         if u_vector is not None: 
             self.u_vector = u_vector
             
-    def generateSpline(self, d_vector ,u_vector, n):
+    def generateSpline(self, n):
         ''' This funktion takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
         deBoor method for cubic splines
@@ -44,19 +44,18 @@ class CurveDesigner(object):
         n determines the "resolution" of the spline
         
         '''
-        self.u_vector = u_vector     #
-        self.d_vector = d_vector
+
         self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
-        Spline = np.empty([2,n])
+        spline = np.empty([2,n])
         
         #This for-loop can probably be replaced with vector operations 
         for j in range(0,n):
             i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
             uu = self.u_vector[i-3:i+3] #extracts the relevant 
-            dd = self.d_vector[i-4:i]   
+            dd = self.d_vector[i-3:i+1]   
             S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
-            Spline[:,j] = S_u  # add the the point to the spline vector
-        return Spline
+            spline[:,j] = S_u  # add the the point to the spline vector
+        return spline
     
     
     
@@ -92,20 +91,35 @@ class CurveDesigner(object):
                 if((self.u_vector[j-1]<=u) and (u<self.u_vector[j])):
                     return 1
                 return 0
-            #Prevent out of bounds.
+            #Prevent out of bounds and divide by zero.
             if j==0:
+                if (self.u_vector[j+k]-self.u_vector[j]):
+                    return (self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)
+                else:
+                    return 0
+            
+            if (j+1)==(len(self.u_vector)-2):
+                if (self.u_vector[j+k-1]-self.u_vector[j-1]):
+                    return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1)    
+                else:
+                    return 0
+
+            #Not out of bounds, check if divide by zero
+            if ((self.u_vector[j+k-1]-self.u_vector[j-1]) and (self.u_vector[j+k]-self.u_vector[j])):
+                return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1) \
+                        +(self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)
+            
+            if ((self.u_vector[j+k-1]-self.u_vector[j-1]) and not (self.u_vector[j+k]-self.u_vector[j])):
+                return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1)
+            
+            if ((self.u_vector[j+k]-self.u_vector[j]) and not (self.u_vector[j+k-1]-self.u_vector[j-1])):
                 return (self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)
-
-            if j==(len(self.u_vector)-1):
-                return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1)    
-
-            return (u-self.u_vector[j-1])/(self.u_vector[j+k-1]-self.u_vector[j-1])*N(u,j,k-1) \
-                    +(self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)
+        
         def evaluate_N(u):
             return N(u,j,3) 
         return evaluate_N
     
-    def plot(self, Spline, d_vector, control = False):
+    def plot(self, spline, d_vector, control = False):
         s1 = spline[0,:]        # generate the x-coordinates for the spline
         s2 = spline[1,:]        # generate the y-coordniates for the spline
 
@@ -115,18 +129,18 @@ class CurveDesigner(object):
             #Plot control points with line inbetween
             plt.plot(d0, d1, color = 'r', linewidth = 0.3)
             plt.plot(d0, d1, 'bo', color = 'r')
-            
         plt.plot(s1,s2)         # plotting the spline 
+        plt.show()
         
     def splineFromBasisFunc(self, n):
         #This function evaluates S(u) for each u using the basis functions 
         #given from basis_func
         
         #Create empty list for storing L basis functions
-        Ni = len(self.d_vector)*[None]
+        Ni = (len(self.u_vector)-2)*[None]
         
         #Create the basis functions for each value j (each possible hot interval) and store them in a list
-        for j in range(len(self.d_vector)):
+        for j in range(len(self.u_vector)-2):
             Ni[j] = self.basis_func(j)
             
         #Use the control points and the basis functions to create s(u)
@@ -138,8 +152,8 @@ class CurveDesigner(object):
         for j in range(0,n):
             i = int(self.u_vector.searchsorted([self.u[j]])) #Find the "hot interval"
             
-            dd = self.d_vector[i-4:i] #Extract the useful values of d_i from i = I - 2 to i = I + 1
-            Nfuncs = Ni[i-4:i] #Extract the useful values of N^3_i from i = I - 2 to i = I + 1
+            dd = self.d_vector[i-3:i+1] #Extract the useful values of d_i from i = I - 2 to i = I + 1
+            Nfuncs = Ni[i-3:i+1] #Extract the useful values of N^3_i from i = I - 2 to i = I + 1
             
             #Generate the spline for our current u by summing the products of each d_i with its corresponding N^3_i
             S_u = np.empty([])
@@ -151,7 +165,7 @@ class CurveDesigner(object):
         return Spline
             
         
-
+"""
 #Blossom recursion.
 cd = CurveDesigner()
 
@@ -165,7 +179,7 @@ dd = cd.d_vector[i-4:i]                                                         
 
 new_u = cd.deBoor(dd, uu, u)
 # but we need many new points... hmmm... and then to plot them.
-spline = cd.generateSpline(cd.d_vector, cd.u_vector,50)
+spline = cd.generateSpline(50)
    
 #Plot s(u) and control points using points generated by the deBoor-algorithm
 cd.plot(spline, cd.d_vector, control = True)
@@ -174,5 +188,5 @@ basisspline = cd.splineFromBasisFunc(50)
 
 #Plot s(u) and control points using points generated by basis function multiplication and summation
 cd.plot(basisspline, cd.d_vector, control = True)
-
+"""
 

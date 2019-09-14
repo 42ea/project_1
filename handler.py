@@ -1,8 +1,10 @@
-import project_1 as p
 import numpy as np
 import matplotlib.pyplot as plt
 
-cd = p.CurveDesigner()
+
+import curve_handler as p
+
+
 
 CONTROL = np.array([[-12.73564, 9.03455],
 [-26.77725, 15.89208],
@@ -31,7 +33,9 @@ CONTROL = np.array([[-12.73564, 9.03455],
 KNOTS = np.linspace(0,1,26)
 KNOTS[ 1] = KNOTS[ 2] = KNOTS[ 0]
 KNOTS[-3] = KNOTS[-2] = KNOTS[-1]
-cd(d_vector=CONTROL,u_vector=KNOTS)
+
+cd = p.CurveDesigner(d_vector=CONTROL,u_vector=KNOTS)
+#cd(d_vector=CONTROL,u_vector=KNOTS)
 # but we need many new points... hmmm... and then to plot them.
 spline = cd.generateSpline(5000)
    

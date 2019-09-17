@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import unittest
 '''QUESTIONS:'''
 # 1. uu is selected correctly. But is dd? I guess so, but not sure...
 #    EV TODO = try it differently. Does is work now/still?
@@ -26,6 +27,10 @@ class CurveDesigner(object):
             self.u_vector = np.array([0, 0, 0, 0, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 1, 1, 1, 1]) #Default knot vector
         else:
             self.u_vector = u_vector
+        if interpolation_points is None:
+            pass
+        else:
+            self.int_points = interpolation_points
             
     
     def __call__(self, d_vector = None, u_vector = None): #Method for using a created CurveDesigner-instance
@@ -37,7 +42,7 @@ class CurveDesigner(object):
             self.u_vector = u_vector
             
     def generateSpline(self, n):
-        ''' This funktion takes in control points (d_vector) and node points 
+        ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
         deBoor method for cubic splines
         
@@ -91,7 +96,7 @@ class CurveDesigner(object):
                 if((self.u_vector[j-1]<=u) and (u<self.u_vector[j])):
                     return 1
                 return 0
-            #Prevent out of bounds and divide by zero.
+            #Prevent out of bounds and check if divide by zero.
             if j==0:
                 if (self.u_vector[j+k]-self.u_vector[j]):
                     return (self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import solve_banded
 
+import unittest
 '''QUESTIONS:'''
 # 1. uu is selected correctly. But is dd? I guess so, but not sure...
 #    EV TODO = try it differently. Does is work now/still?
@@ -26,6 +28,11 @@ class CurveDesigner(object):
             self.u_vector = np.array([0, 0, 0, 0, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 1, 1, 1, 1]) #Default knot vector
         else:
             self.u_vector = u_vector
+        if interpolation_points is None:
+            pass
+        else:
+            self.interpolation_points = interpolation_points
+            self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
             
     
     def __call__(self, d_vector = None, u_vector = None): #Method for using a created CurveDesigner-instance
@@ -36,26 +43,62 @@ class CurveDesigner(object):
         if u_vector is not None: 
             self.u_vector = u_vector
             
-    def generateSpline(self, n):
-        ''' This funktion takes in control points (d_vector) and node points 
+    def generateSpline(self, n, mode):
+        ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
         deBoor method for cubic splines
         
         n determines the "resolution" of the spline
         
         '''
+        if mode=='interpolation':
+            L2 = len(self.u_vector)-2
+            Ni = (L2)*[None]
+            ab = np.zeros((4,L2))
+            for j in range(L2):
+                Ni[j] = self.basis_func(j)
+                if j==0:
+                    ab[0][j] = 0
+                    ab[1][j] = 0
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                if j==1:
+                    ab[0][j] = 0
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                if (j>1) and (j<L2-1):
+                    ab[0][j] = Ni[j](self.xi[j-2])
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                if j==L2-1:
+                    ab[0][j] = Ni[j](self.xi[j-2])
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = 0
+            print(ab)
+            print(np.shape(ab))
+            print('shape(b)')
+            print(np.shape(self.interpolation_points[:,0]))
+            d_x = solve_banded((1,2), ab, self.interpolation_points[:,0])
+            d_y = solve_banded((1,2), ab, self.interpolation_points[:,1])
+            CONTROL_POINTS = np.column_stack((d_x,d_y))
+            self.d_vector=CONTROL_POINTS
 
-        self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
-        spline = np.empty([2,n])
-        
-        #This for-loop can probably be replaced with vector operations 
-        for j in range(0,n):
-            i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
-            uu = self.u_vector[i-3:i+3] #extracts the relevant 
-            dd = self.d_vector[i-3:i+1]   
-            S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
-            spline[:,j] = S_u  # add the the point to the spline vector
-        return spline
+        elif mode=='control points':
+            self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
+            spline = np.empty([2,n])
+            
+            #This for-loop can probably be replaced with vector operations 
+            for j in range(0,n):
+                i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
+                uu = self.u_vector[i-3:i+3] #extracts the relevant 
+                dd = self.d_vector[i-3:i+1]   
+                S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
+                spline[:,j] = S_u  # add the the point to the spline vector
+            return spline
+        pass
     
     
     
@@ -80,7 +123,7 @@ class CurveDesigner(object):
         
         a43 = (u1-u)/(u1-u0)
         d43 = a43*d32 + (1-a43)*d42
-        
+    
         return d43
         
     def basis_func(self, j):
@@ -91,7 +134,7 @@ class CurveDesigner(object):
                 if((self.u_vector[j-1]<=u) and (u<self.u_vector[j])):
                     return 1
                 return 0
-            #Prevent out of bounds and divide by zero.
+            #Prevent out of bounds and check if divide by zero.
             if j==0:
                 if (self.u_vector[j+k]-self.u_vector[j]):
                     return (self.u_vector[j+k]-u)/(self.u_vector[j+k]-self.u_vector[j])*N(u,j+1,k-1)

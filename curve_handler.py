@@ -59,7 +59,7 @@ class CurveDesigner(object):
     
     
     
-    def deBoor(self, dd, ui, u):
+    def deBoor(self, dd, ui, u, blossom = False):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points for our hot interval
         uu: [u_(I-2), ..., u_(I+3)] : node points for our 
@@ -80,6 +80,14 @@ class CurveDesigner(object):
         
         a43 = (u1-u)/(u1-u0)
         d43 = a43*d32 + (1-a43)*d42
+        
+        #If blossom is set to True, return the wanted blossoms and control point for u_blossom
+        #instead of the spline point
+        if blossom:
+            blossoms1 = d21, d31, d41 #Defines the first iteration blossom points d[u, u_{I-1}, u_I], d[u, u_I, u_{I + 1}] and d[u, u_{I+1}, u_{I+2}]
+            blossoms2 = d32, d42 #Defines the second iteration blossom points d[u, u, u_I] 
+            control_point = dd[0] #Defines the control point
+            return blossoms1, blossoms2, control_point, d43
         
         return d43
         
@@ -119,17 +127,29 @@ class CurveDesigner(object):
             return N(u,j,3) 
         return evaluate_N
     
-    def plot(self, spline, d_vector, control = False):
+    def plot(self, spline, d_vector, control = False, blossom = False, blossoms1 = None, blossoms2= None, control_point = None, d43 = None):
         s1 = spline[0,:]        # generate the x-coordinates for the spline
         s2 = spline[1,:]        # generate the y-coordniates for the spline
 
         d0, d1 = zip(*d_vector) #Separates the x- and y-values for the control points
         
         if control:
-            #Plot control points with line inbetween
-            plt.plot(d0, d1, color = 'r', linewidth = 0.3)
-            plt.plot(d0, d1, 'bo', color = 'r')
-        plt.plot(s1,s2)         # plotting the spline 
+            plt.plot(d0, d1, color = 'r', linewidth = 0.3) #Plot line inbetween control points
+            plt.plot(d0, d1, 'bo', color = 'r') #Plot the control points
+         
+        plt.plot(s1,s2) #Plots the spline 
+        
+        if blossom:
+#            if blossoms1 is not None and control_point is not None and d43 is not None:
+            b1 = np.array(blossoms1)
+            plt.plot(b1[:, 0], b1[:, 1], color = 'g', linewidth = 1) #Plot a line between the first blossom points in green.
+            plt.plot(b1[:,0], b1[:,1], 'bo', color = 'g') #Plot the first iteration blossom points in green.
+            b2 = np.array(blossoms2)
+            plt.plot(b2[:, 0], b2[:, 1], color = 'y', linewidth = 1) #Plot a line between the second iteration blossom points in yellow.
+            plt.plot(b2[:,0], b2[:,1], 'bo', color = 'y') #Plot the second iteration blossom points in yellow.
+            plt.plot(control_point[0], control_point[1], 'bo', color = 'm') #Highlight the control point in magenta.
+            plt.plot(d43[0], d43[1], 'bo', color = 'b') #Plot the given spline point in blue.
+        
         plt.show()
         
     def splineFromBasisFunc(self, n):
@@ -163,7 +183,13 @@ class CurveDesigner(object):
                 
             Spline[:,j] = S_u  # add the the point to the spline vector   
         return Spline
-            
+    
+    def generateBlossoms(self, u_blossom):
+        i = int(self.u_vector.searchsorted(u_blossom)) #Find the "hot interval" for u_blossom
+        uu = self.u_vector[i-3:i+3] #Extract the relevant interval of knot points  
+        dd = self.d_vector[i-3:i+1] #Extract the relevant interval of control points
+        blossoms1, blossoms2, control_point, d43 = self.deBoor(dd,uu, u_blossom, blossom = True) #Generate the blossoms and control point for u_blossom
+        return blossoms1, blossoms2, control_point, d43
         
 """
 #Blossom recursion.

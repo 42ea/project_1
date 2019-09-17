@@ -3,36 +3,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_banded
 
-import unittest
-'''QUESTIONS:'''
-# 1. uu is selected correctly. But is dd? I guess so, but not sure...
-#    EV TODO = try it differently. Does is work now/still?
-
-'''TODO'''
-# 1.
-
-'''PROGRAM'''
 class CurveDesigner(object):
-    """Class to design 2D curves using cubic splines and control points, 
+    """Class to design curves using cubic splines and control points, 
     as well as by fitting cubic splines through given data points."""
 
-    def __init__(self, d_vector = None, u_vector = None, data_points = None): #Constructor method for a CurveDesigner-object
+    def __init__(self, d_vector=None, u_vector=None, data_points=None): #Constructor method for a CurveDesigner-object
         
         if d_vector is None:
-            self.d_vector = np.array([[1, 4], [0.5, 6], [5, 4], [3, 12], [11, 14], 
-                                            [8, 4], [12, 3], [11, 9], [15, 10], [17, 8]]) #Default control point-vector
+            self.d_vector = self.load_default_data('d_vector') #Default control point-vector
         else:
             self.d_vector = d_vector
             
         if u_vector is None: 
-            self.u_vector = np.array([0, 0, 0, 0, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 1, 1, 1, 1]) #Default knot vector
+            self.u_vector = self.load_default_data('u_vector') #Default knot vector
+            print(self.u_vector)
         else:
             self.u_vector = u_vector
         if data_points is None:
             pass
         else:
             self.data_points = data_points
-            self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
+            self.xi = (self.u_vector[:-2]+self.u_vector[1:-1]+self.u_vector[2:])/3
             self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
             
     
@@ -48,15 +39,17 @@ class CurveDesigner(object):
             self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
             self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
 
-    def generateSpline(self, n, mode='control'):
+    def generate_spline(self, n, interpolate=False):
         ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
-        deBoor method for cubic splines
+        deBoor method for cubic splines.
+        The parameter n determines the "resolution" of the spline.
         
-        n determines the "resolution" of the spline
-        
+        If interpolate is equal to true, the method will calculate the control
+        points through an interpolation method and then calculate the spline s(u)
+        with the newly acquired control points.
         '''
-        if mode=='interpolate':
+        if interpolate:
             L2 = len(self.u_vector)-2
             Ni = (L2)*[None]
             ab = np.zeros((5,L2))
@@ -96,30 +89,39 @@ class CurveDesigner(object):
             d_y = solve_banded((2,2),ab, self.data_points[:,1])
             self.d_vector=np.column_stack((d_x, d_y))
 
-        self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
+        # Create points u, used for plotting the spline S(u)
+        self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n) 
         spline = np.empty([np.shape(self.d_vector)[1],n])
-        #This for-loop can probably be replaced with vector operations 
+
         for j in range(0,n):
-            i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
-            uu = self.u_vector[i-3:i+3] #extracts the relevant 
-            dd = self.d_vector[i-3:i+1]   
-            S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
-            spline[:,j] = S_u  # add the the point to the spline vector
+            i = int(self.u_vector.searchsorted([self.u[j]]))   # Finds the hot interval
+            uu = self.u_vector[i-3:i+3] # Extract the relevant interval of knot points  
+            dd = self.d_vector[i-3:i+1] # Extract the relevant interval of control points  
+            S_u = self.deBoor(dd,uu,self.u[j]) # Generate the S value for our current u. 
+            spline[:,j] = S_u  # Add the the point to the spline vector
         return spline
     
     
     
-    def deBoor(self, dd, ui, u, blossom = False):
+    def deBoor(self, dd, ui, u, get_blossoms = False):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points for our hot interval
-        uu: [u_(I-2), ..., u_(I+3)] : node points for our 
-        u: parameter for generating a new point.
+        uu: [u_(I-2), ..., u_(I+3)] : node points for our hot interval
         ui: node point array
+        u: parameter for generating a new point.
         blossom: parameter for choosing whether
         or not to plot blossom points
+
+        blossom recursion:
+            dd[0]
+            dd[1]   d21
+            dd[2]   d31    d32
+            dd[3]   d41    d42    d43
+
         """
         uu2, uu1, u0, u1, u2, u3 = ui
         
+        # Calculating the relevant alpha values and blossoms for the first iteration.
         a21 = (u1-u)/(u1-uu2)
         a31 = (u2-u)/(u2-uu1)
         a41 = (u3-u)/(u3-u0)
@@ -127,17 +129,19 @@ class CurveDesigner(object):
         d31 = a31*dd[1] + (1-a31)*dd[2]
         d41 = a41*dd[2] + (1-a41)*dd[3]
         
+        # Second iteration
         a32 = (u1-u)/(u1-uu1)
         a42 = (u2-u)/(u2-u0)
         d32 = a32*d21 + (1-a32)*d31
         d42 = a42*d31 + (1-a42)*d41
         
+        # Third and final iteration
         a43 = (u1-u)/(u1-u0)
         d43 = a43*d32 + (1-a43)*d42
         
-        #If blossom is set to True, return the wanted blossoms and control point for u_blossom
+        #If blossom is set to True, return the blossoms, from the first and second iteration, and control point for u_blossom
         #instead of the spline point
-        if blossom:
+        if get_blossoms:
             blossoms1 = d21, d31, d41 #Defines the first iteration blossom points d[u, u_{I-1}, u_I], d[u, u_I, u_{I + 1}] and d[u, u_{I+1}, u_{I+2}]
             blossoms2 = d32, d42 #Defines the second iteration blossom points d[u, u, u_I] 
             control_point = dd[0] #Defines the control point
@@ -146,6 +150,12 @@ class CurveDesigner(object):
         return d43
         
     def basis_func(self, j):
+        """
+            By specifying a grid point j, one will obtain a function
+            handle that will be able to evaluate basis function j at a specified u-value.
+            in: j
+            out: N_j(u)
+        """
         def N(u,j,k):
             if(k==0):
                 if(self.u_vector[j]==self.u_vector[j-1]):
@@ -181,21 +191,17 @@ class CurveDesigner(object):
             return N(u,j,3) 
         return evaluate_N
     
-    def plot(self, spline, d_vector, control = False,interpolate = False,blossom = False, blossoms1 = None, blossoms2= None, control_point = None, d43 = None):
+    def plot(self, spline, d_vector, control=False, interpolate=False, blossom=False, blossoms1=None, blossoms2=None, control_point=None, d43=None):
         s1 = spline[0,:]        # generate the x-coordinates for the spline
         s2 = spline[1,:]        # generate the y-coordniates for the spline
-
-        d0, d1 = zip(*d_vector) #Separates the x- and y-values for the control points
+        plt.plot(s1,s2)         # plotting the spline 
         
         if control:
-            #Plot control points with line inbetween
-            plt.plot(d0, d1, color = 'r', linewidth = 0.3)
+            d0, d1 = zip(*d_vector) #Separates the x- and y-values for the control points
+            plt.plot(d0, d1, color = 'r', linewidth = 0.3) #Plot control points with line inbetween
             plt.plot(d0, d1, 'bo', color = 'r')
         
-        plt.plot(s1,s2)         # plotting the spline 
-
-        if blossom:
-#            if blossoms1 is not None and control_point is not None and d43 is not None:
+        if blossom: # Plot ALL blossom points for creating a certain S(u), instead of the two required blossom points in add-on 1
             b1 = np.array(blossoms1)
             plt.plot(b1[:, 0], b1[:, 1], color = 'g', linewidth = 1) #Plot a line between the first blossom points in green.
             plt.plot(b1[:,0], b1[:,1], 'bo', color = 'g') #Plot the first iteration blossom points in green.
@@ -211,10 +217,12 @@ class CurveDesigner(object):
         
         plt.show()
         
-    def splineFromBasisFunc(self, n):
-        #This function evaluates S(u) for each u using the basis functions 
-        #given from basis_func
-        
+    def spline_from_basis_func(self, n):
+        """
+            This function evaluates S(u) for each u using the basis functions 
+            given from basis_func
+        """
+
         #Create empty list for storing L basis functions
         Ni = (len(self.u_vector)-2)*[None]
         
@@ -243,11 +251,42 @@ class CurveDesigner(object):
             Spline[:,j] = S_u  # add the the point to the spline vector   
         return Spline
     
-    def generateBlossoms(self, u_blossom):
+    def generate_blossoms(self, u_blossom):
         i = int(self.u_vector.searchsorted(u_blossom)) #Find the "hot interval" for u_blossom
         uu = self.u_vector[i-3:i+3] #Extract the relevant interval of knot points  
         dd = self.d_vector[i-3:i+1] #Extract the relevant interval of control points
-        blossoms1, blossoms2, control_point, d43 = self.deBoor(dd,uu, u_blossom, blossom = True) #Generate the blossoms and control point for u_blossom
+        blossoms1, blossoms2, control_point, d43 = self.deBoor(dd,uu, u_blossom, get_blossoms = True) #Generate the blossoms and control point for u_blossom
         return blossoms1, blossoms2, control_point, d43
-            
+    
+    def load_default_data(self,mode = None):
+        if mode=='d_vector':
+            return np.array([[-12.73564, 9.03455],
+                            [-26.77725, 15.89208],
+                            [-42.12487, 20.57261],
+                            [-15.34799, 4.57169],
+                            [-31.72987, 6.85753],
+                            [-49.14568, 6.85754],
+                            [-38.09753, -1e-05],
+                            [-67.92234, -11.10268],
+                            [-89.47453, -33.30804],
+                            [-21.44344, -22.31416],
+                            [-32.16513, -53.33632],
+                            [-32.16511, -93.06657],
+                            [-2e-05, -39.83887],
+                            [10.72167, -70.86103],
+                            [32.16511, -93.06658],
+                            [21.55219, -22.31397],
+                            [51.377, -33.47106],
+                            [89.47453, -33.47131],
+                            [15.89191, 0.00025],
+                            [30.9676, 1.95954],
+                            [45.22709, 5.87789],
+                            [14.36797, 3.91883],
+                            [27.59321, 9.68786],
+                            [39.67575, 17.30712]])
+        if mode=='u_vector':
+            KNOTS = np.linspace(0,1,26)
+            KNOTS[ 1] = KNOTS[ 2] = KNOTS[ 0]
+            KNOTS[-3] = KNOTS[-2] = KNOTS[-1]
+            return KNOTS
         

@@ -44,9 +44,9 @@ class TestIdentity(unittest.TestCase):
         self.KNOTS[-3] = self.KNOTS[-2] = self.KNOTS[-1]
         cd(d_vector=self.CONTROL,u_vector=self.KNOTS)
         # Do the Blossom spline
-        self.blossomspline = cd.generateSpline(5000)
+        self.blossomspline = cd.generate_spline(5000)
         # Do the basis spline
-        self.basisspline = cd.splineFromBasisFunc(5000)
+        self.basisspline = cd.spline_from_basis_func(5000)
         # Calculate the norm of the difference between the two methods
         self.dif = np.linalg.norm(self.blossomspline-self.basisspline)
     def test(self):
@@ -61,8 +61,8 @@ class TestRandom2D(unittest.TestCase):
         self.knots[2] = self.knots[1] = self.knots[0]
         self.knots[-3] = self.knots[-2] = self.knots[-1]
         cd(self.control,self.knots)
-        self.bl_spline = cd.generateSpline(5000)
-        self.ba_spline = cd.splineFromBasisFunc(5000)
+        self.bl_spline = cd.generate_spline(5000)
+        self.ba_spline = cd.spline_from_basis_func(5000)
         self.dif = np.linalg.norm(self.bl_spline-self.ba_spline)
     def test(self): 
         self.assertAlmostEqual(self.dif,0)
@@ -76,8 +76,8 @@ class TestRandom3D(unittest.TestCase):
         self.knots[2] = self.knots[1] = self.knots[0]
         self.knots[-3] = self.knots[-2] = self.knots[-1]
         cd(self.control,self.knots)
-        self.bl_spline = cd.generateSpline(5000)
-        self.ba_spline = cd.splineFromBasisFunc(5000)
+        self.bl_spline = cd.generate_spline(5000)
+        self.ba_spline = cd.spline_from_basis_func(5000)
         self.dif = np.linalg.norm(self.bl_spline-self.ba_spline)    
     def test(self): 
         self.assertAlmostEqual(self.dif,0)
@@ -92,10 +92,10 @@ class TestInterpol(unittest.TestCase):
         self.knots[2] = self.knots[1] = self.knots[0]
         self.knots[-3] = self.knots[-2] = self.knots[-1]
         cd(data_points=self.data_points,u_vector=self.knots)
-        self.bl_spline = cd.generateSpline(5000,'interpolate')
+        self.bl_spline = cd.generate_spline(5000,'interpolate')
     def test(self): 
-        self.AssertIsIn(self.data_points,self.bl_spline)
-
+        print(np.shape(self.bl_spline))
+        self.assertAlmostEqual(np.linalg.norm(self.data_points[-1,:]-self.bl_spline[:,-1],2),0,places=5)
 
 """ TODO """
 # Add more relevant tests, eg diferent dimensions, number u, number of d, hot interval
@@ -130,11 +130,11 @@ cd = p.CurveDesigner(control,knots)
 '''
 
 # Code to be meassured
-method1 = "bl_spline = cd.generateSpline(5000,'control points')"
+method1 = "bl_spline = cd.generate_spline(5000,'control points')"
 # Timeit statement 
 time1 = timeit.timeit(setup = mysetup, stmt = method1, number = n )
 # Second code to be meassured
-method2 = "ba_spline = cd.splineFromBasisFunc(5000)"
+method2 = "ba_spline = cd.spline_from_basis_func(5000)"
 # Timeit statement
 time2 = timeit.timeit(setup = mysetup, stmt = method2, number = n)
 

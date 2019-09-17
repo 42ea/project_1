@@ -102,7 +102,9 @@ class CurveDesigner(object):
             S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
             spline[:,j] = S_u  # add the the point to the spline vector
         return spline
-  
+    
+    
+    
     def deBoor(self, dd, ui, u, blossom = False):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points for our hot interval

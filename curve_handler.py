@@ -16,7 +16,7 @@ class CurveDesigner(object):
     """Class to design 2D curves using cubic splines and control points, 
     as well as by fitting cubic splines through given data points."""
 
-    def __init__(self, d_vector = None, u_vector = None, interpolation_points = None): #Constructor method for a CurveDesigner-object
+    def __init__(self, d_vector = None, u_vector = None, data_points = None): #Constructor method for a CurveDesigner-object
         
         if d_vector is None:
             self.d_vector = np.array([[1, 4], [0.5, 6], [5, 4], [3, 12], [11, 14], 
@@ -28,22 +28,26 @@ class CurveDesigner(object):
             self.u_vector = np.array([0, 0, 0, 0, 1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 1, 1, 1, 1]) #Default knot vector
         else:
             self.u_vector = u_vector
-        if interpolation_points is None:
+        if data_points is None:
             pass
         else:
-            self.interpolation_points = interpolation_points
+            self.data_points = data_points
             self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
             self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
             
     
-    def __call__(self, d_vector = None, u_vector = None): #Method for using a created CurveDesigner-instance
+    def __call__(self, d_vector = None, u_vector = None,data_points = None): #Method for using a created CurveDesigner-instance
         
         if d_vector is not None: 
             self.d_vector = d_vector
 
         if u_vector is not None: 
             self.u_vector = u_vector
-            
+        if data_points is not None:
+            self.data_points = data_points
+            self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
+            self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
+
     def generateSpline(self, n, mode='control'):
         ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
@@ -88,12 +92,12 @@ class CurveDesigner(object):
                     ab[2][j] = Ni[j](self.xi[j])
                     ab[3][j] = 0
                     ab[4][j] = 0
-            d_x = solve_banded((2,2),ab, self.interpolation_points[:,0])
-            d_y = solve_banded((2,2),ab, self.interpolation_points[:,1])
+            d_x = solve_banded((2,2),ab, self.data_points[:,0])
+            d_y = solve_banded((2,2),ab, self.data_points[:,1])
             self.d_vector=np.column_stack((d_x, d_y))
 
         self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
-        spline = np.empty([2,n])
+        spline = np.empty([np.shape(self.d_vector)[1],n])
         #This for-loop can probably be replaced with vector operations 
         for j in range(0,n):
             i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
@@ -202,7 +206,7 @@ class CurveDesigner(object):
             plt.plot(d43[0], d43[1], 'bo', color = 'b') #Plot the given spline point in blue.
         
         if interpolate:
-            ip0,ip1=zip(*self.interpolation_points)
+            ip0,ip1=zip(*self.data_points)
             plt.plot(ip0, ip1, 'go', color = 'g')
         
         plt.show()
@@ -221,7 +225,7 @@ class CurveDesigner(object):
         #Use the control points and the basis functions to create s(u)
         
         self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  #Generate n-vector of u-values to generate spline
-        Spline = np.empty([2,n]) #Create empty vector for filling with points on the spline
+        Spline = np.empty([np.shape(self.d_vector)[1],n]) #Create empty vector for filling with points on the spline
         
         #For each u in the u-vector, compute the spline and insert into spline vector
         for j in range(0,n):

@@ -49,6 +49,7 @@ if debug:
     plt.show()
     
 interpol = np.column_stack((data_x,data_y))
+print(np.shape(interpol)[1])
 cd = p.CurveDesigner(d_vector=cp,u_vector=knots, interpolation_points=interpol)
 
 if debug:

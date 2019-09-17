@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import solve_banded
 
 import unittest
 '''QUESTIONS:'''
@@ -30,7 +31,9 @@ class CurveDesigner(object):
         if interpolation_points is None:
             pass
         else:
-            self.int_points = interpolation_points
+            self.interpolation_points = interpolation_points
+            self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
+            self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
             
     
     def __call__(self, d_vector = None, u_vector = None): #Method for using a created CurveDesigner-instance
@@ -41,7 +44,7 @@ class CurveDesigner(object):
         if u_vector is not None: 
             self.u_vector = u_vector
             
-    def generateSpline(self, n):
+    def generateSpline(self, n, mode='control'):
         ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
         deBoor method for cubic splines
@@ -49,10 +52,48 @@ class CurveDesigner(object):
         n determines the "resolution" of the spline
         
         '''
+        if mode=='interpolate':
+            L2 = len(self.u_vector)-2
+            Ni = (L2)*[None]
+            ab = np.zeros((5,L2))
+            for j in range(L2):
+                Ni[j] = self.basis_func(j)
+                if j==0:
+                    ab[0][j] = 0
+                    ab[1][j] = 0
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                    ab[4][j] = Ni[j](self.xi[j+2])
+                if j==1:
+                    ab[0][j] = 0
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                    ab[4][j] = Ni[j](self.xi[j+2])
+                if (j>1) and (j<L2-2):
+                    ab[0][j] = Ni[j](self.xi[j-2])
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                    ab[4][j] = Ni[j](self.xi[j+2])
+                if j==L2-2:
+                    ab[0][j] = Ni[j](self.xi[j-2])
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = Ni[j](self.xi[j+1])
+                    ab[4][j] = 0
+                if j==L2-1:
+                    ab[0][j] = Ni[j](self.xi[j-2])
+                    ab[1][j] = Ni[j](self.xi[j-1])
+                    ab[2][j] = Ni[j](self.xi[j])
+                    ab[3][j] = 0
+                    ab[4][j] = 0
+            d_x = solve_banded((2,2),ab, self.interpolation_points[:,0])
+            d_y = solve_banded((2,2),ab, self.interpolation_points[:,1])
+            self.d_vector=np.column_stack((d_x, d_y))
 
         self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n)  # generate n- long vector of u-values to generate spline
         spline = np.empty([2,n])
-        
         #This for-loop can probably be replaced with vector operations 
         for j in range(0,n):
             i = int(self.u_vector.searchsorted([self.u[j]]))   # finds the "hot interval"
@@ -61,14 +102,16 @@ class CurveDesigner(object):
             S_u = self.deBoor(dd,uu,self.u[j]) # generate the S value for our current u. 
             spline[:,j] = S_u  # add the the point to the spline vector
         return spline
-    
-    
-    
-    def deBoor(self, dd, ui, u):
+  
+    def deBoor(self, dd, ui, u, blossom = False):
         """"Calculates new points s(u) on a curve using the De Boor algorithm.
         dd: [d_(I-2), ..., d_(I+1)] : control points for our hot interval
         uu: [u_(I-2), ..., u_(I+3)] : node points for our 
-        u: parameter for generating a new point."""
+        u: parameter for generating a new point.
+        ui: node point array
+        blossom: parameter for choosing whether
+        or not to plot blossom points
+        """
         uu2, uu1, u0, u1, u2, u3 = ui
         
         a21 = (u1-u)/(u1-uu2)
@@ -85,6 +128,14 @@ class CurveDesigner(object):
         
         a43 = (u1-u)/(u1-u0)
         d43 = a43*d32 + (1-a43)*d42
+        
+        #If blossom is set to True, return the wanted blossoms and control point for u_blossom
+        #instead of the spline point
+        if blossom:
+            blossoms1 = d21, d31, d41 #Defines the first iteration blossom points d[u, u_{I-1}, u_I], d[u, u_I, u_{I + 1}] and d[u, u_{I+1}, u_{I+2}]
+            blossoms2 = d32, d42 #Defines the second iteration blossom points d[u, u, u_I] 
+            control_point = dd[0] #Defines the control point
+            return blossoms1, blossoms2, control_point, d43
         
         return d43
         
@@ -124,7 +175,7 @@ class CurveDesigner(object):
             return N(u,j,3) 
         return evaluate_N
     
-    def plot(self, spline, d_vector, control = False):
+    def plot(self, spline, d_vector, control = False,interpolate = False,blossom = False, blossoms1 = None, blossoms2= None, control_point = None, d43 = None):
         s1 = spline[0,:]        # generate the x-coordinates for the spline
         s2 = spline[1,:]        # generate the y-coordniates for the spline
 
@@ -134,7 +185,24 @@ class CurveDesigner(object):
             #Plot control points with line inbetween
             plt.plot(d0, d1, color = 'r', linewidth = 0.3)
             plt.plot(d0, d1, 'bo', color = 'r')
+        
         plt.plot(s1,s2)         # plotting the spline 
+
+        if blossom:
+#            if blossoms1 is not None and control_point is not None and d43 is not None:
+            b1 = np.array(blossoms1)
+            plt.plot(b1[:, 0], b1[:, 1], color = 'g', linewidth = 1) #Plot a line between the first blossom points in green.
+            plt.plot(b1[:,0], b1[:,1], 'bo', color = 'g') #Plot the first iteration blossom points in green.
+            b2 = np.array(blossoms2)
+            plt.plot(b2[:, 0], b2[:, 1], color = 'y', linewidth = 1) #Plot a line between the second iteration blossom points in yellow.
+            plt.plot(b2[:,0], b2[:,1], 'bo', color = 'y') #Plot the second iteration blossom points in yellow.
+            plt.plot(control_point[0], control_point[1], 'bo', color = 'm') #Highlight the control point in magenta.
+            plt.plot(d43[0], d43[1], 'bo', color = 'b') #Plot the given spline point in blue.
+        
+        if interpolate:
+            ip0,ip1=zip(*self.interpolation_points)
+            plt.plot(ip0, ip1, 'go', color = 'g')
+        
         plt.show()
         
     def splineFromBasisFunc(self, n):
@@ -168,30 +236,12 @@ class CurveDesigner(object):
                 
             Spline[:,j] = S_u  # add the the point to the spline vector   
         return Spline
+    
+    def generateBlossoms(self, u_blossom):
+        i = int(self.u_vector.searchsorted(u_blossom)) #Find the "hot interval" for u_blossom
+        uu = self.u_vector[i-3:i+3] #Extract the relevant interval of knot points  
+        dd = self.d_vector[i-3:i+1] #Extract the relevant interval of control points
+        blossoms1, blossoms2, control_point, d43 = self.deBoor(dd,uu, u_blossom, blossom = True) #Generate the blossoms and control point for u_blossom
+        return blossoms1, blossoms2, control_point, d43
             
         
-"""
-#Blossom recursion.
-cd = CurveDesigner()
-
-#Find the "hot interval".
-u = 0.01 # om man börjar u- på noll så kommer uu bli tomt set så frågan är hur vi ska välja första u
-i = int(cd.u_vector.searchsorted([u])) #6 for u=0.3.
-
-#Select the six relevant u's and the four relevant d's.
-uu = cd.u_vector[i-3:i+3] #
-dd = cd.d_vector[i-4:i]                                                            # Correct?
-
-new_u = cd.deBoor(dd, uu, u)
-# but we need many new points... hmmm... and then to plot them.
-spline = cd.generateSpline(50)
-   
-#Plot s(u) and control points using points generated by the deBoor-algorithm
-cd.plot(spline, cd.d_vector, control = True)
-
-basisspline = cd.splineFromBasisFunc(50)
-
-#Plot s(u) and control points using points generated by basis function multiplication and summation
-cd.plot(basisspline, cd.d_vector, control = True)
-"""
-

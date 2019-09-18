@@ -44,6 +44,6 @@ KNOTS[ 1] = KNOTS[ 2] = KNOTS[ 0]
 KNOTS[-3] = KNOTS[-2] = KNOTS[-1]
 
 cd = p.CurveDesigner(d_vector=CONTROL,u_vector=KNOTS)
-spline = cd.generateSpline(5000)
-blossoms1, blossoms2, control_point, d43 = cd.generateBlossoms(0.344)
+spline = cd.generate_spline(5000)
+blossoms1, blossoms2, control_point, d43 = cd.generate_blossoms(0.344)
 cd.plot(spline, cd.d_vector, control = True, blossom = True, blossoms1 = blossoms1, blossoms2 = blossoms2, control_point = control_point, d43 = d43)

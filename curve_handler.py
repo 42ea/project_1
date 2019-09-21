@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import scipy.linalg as sl
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_banded
 
@@ -38,7 +39,13 @@ class CurveDesigner(object):
             self.data_points = data_points
             self.xi = (u_vector[:-2]+u_vector[1:-1]+u_vector[2:])/3
             self.xi[-1]=self.xi[-1]-0.001*self.xi[-1]
-
+            
+            
+    def git_test(self):
+        print("Please God, let me succeed in pushing to git. I want it soo much.")
+        
+        
+        
     def generate_spline(self, n, interpolate=False):
         ''' This function takes in control points (d_vector) and node points 
         (u_vector) and returns the cubic spline for those points using the 
@@ -88,6 +95,11 @@ class CurveDesigner(object):
             d_x = solve_banded((2,2),ab, self.data_points[:,0])
             d_y = solve_banded((2,2),ab, self.data_points[:,1])
             self.d_vector=np.column_stack((d_x, d_y))
+            
+            print('Test norm(ab) == 1')
+            print(sl.norm(ab,np.inf))
+            print('Test Ni[0](0.001) == 1')
+            print(Ni[0](0.001))
 
         # Create points u, used for plotting the spline S(u)
         self.u = np.linspace(min(self.u_vector)+0.001,max(self.u_vector)-0.001,n) 
@@ -284,5 +296,20 @@ class CurveDesigner(object):
             KNOTS = np.linspace(0,1,26)
             KNOTS[ 1] = KNOTS[ 2] = KNOTS[ 0]
             KNOTS[-3] = KNOTS[-2] = KNOTS[-1]
+            
+#            print(KNOTS)            KNOTS[3:7] = 0.15
+
+#            KNOTS[3:7] = 0.15
+#            KNOTS[7:11] = 0.30
+#            KNOTS[11:15] = 0.45
+#            KNOTS[15:19] = 0.60            
+            
+#            KNOTS[3:6] = 0.15
+#            KNOTS[6:9] = 0.25
+#            KNOTS[9:12] = 0.35
+#            KNOTS[12:15] = 0.45
+
+            
+            
             return KNOTS
         
